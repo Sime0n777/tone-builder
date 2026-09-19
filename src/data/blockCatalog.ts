@@ -1,0 +1,289 @@
+import type { BlockTypeDef } from '../types/tone';
+
+export const BLOCK_CATALOG: BlockTypeDef[] = [
+  {
+    typeId: 'tube-screamer',
+    name: 'Tube Screamer',
+    category: 'drive',
+    shortLabel: 'TS',
+    description: 'Classic mid-hump overdrive',
+    params: [
+      { id: 'drive', label: 'Drive', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'tone', label: 'Tone', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'level', label: 'Level', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+    ],
+  },
+  {
+    typeId: 'rat',
+    name: 'Rat Distortion',
+    category: 'drive',
+    shortLabel: 'RAT',
+    description: 'Aggressive silicon distortion',
+    params: [
+      { id: 'distortion', label: 'Distortion', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 6 },
+      { id: 'filter', label: 'Filter', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 7 },
+      { id: 'volume', label: 'Volume', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+    ],
+  },
+  {
+    typeId: 'fuzz-face',
+    name: 'Fuzz Face',
+    category: 'drive',
+    shortLabel: 'FUZZ',
+    description: 'Vintage germanium fuzz',
+    params: [
+      { id: 'fuzz', label: 'Fuzz', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 7 },
+      { id: 'volume', label: 'Volume', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+    ],
+  },
+  {
+    typeId: 'boost',
+    name: 'Clean Boost',
+    category: 'drive',
+    shortLabel: 'BST',
+    description: 'Transparent level boost',
+    params: [
+      { id: 'gain', label: 'Gain', type: 'knob', min: 0, max: 20, step: 0.5, unit: 'dB', defaultValue: 6 },
+      { id: 'bright', label: 'Bright', type: 'toggle', defaultValue: false },
+    ],
+  },
+  {
+    typeId: 'chorus',
+    name: 'Chorus',
+    category: 'modulation',
+    shortLabel: 'CHO',
+    description: 'Analog-style chorus',
+    params: [
+      { id: 'rate', label: 'Rate', type: 'knob', min: 0.1, max: 10, step: 0.1, unit: 'Hz', defaultValue: 1.5 },
+      { id: 'depth', label: 'Depth', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'mix', label: 'Mix', type: 'knob', min: 0, max: 100, step: 1, unit: '%', defaultValue: 50 },
+    ],
+  },
+  {
+    typeId: 'phaser',
+    name: 'Phaser',
+    category: 'modulation',
+    shortLabel: 'PHS',
+    description: 'Sweeping phase shifter',
+    params: [
+      { id: 'rate', label: 'Rate', type: 'knob', min: 0.1, max: 10, step: 0.1, unit: 'Hz', defaultValue: 0.8 },
+      { id: 'depth', label: 'Depth', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 6 },
+      { id: 'feedback', label: 'Feedback', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 3 },
+      { id: 'stages', label: 'Stages', type: 'select', options: ['4', '6', '8', '12'], defaultValue: '4' },
+    ],
+  },
+  {
+    typeId: 'tremolo',
+    name: 'Tremolo',
+    category: 'modulation',
+    shortLabel: 'TRM',
+    description: 'Amplitude modulation',
+    params: [
+      { id: 'rate', label: 'Rate', type: 'knob', min: 0.5, max: 12, step: 0.1, unit: 'Hz', defaultValue: 4 },
+      { id: 'depth', label: 'Depth', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'waveform', label: 'Wave', type: 'select', options: ['Sine', 'Triangle', 'Square'], defaultValue: 'Sine' },
+    ],
+  },
+  {
+    typeId: 'flanger',
+    name: 'Flanger',
+    category: 'modulation',
+    shortLabel: 'FLG',
+    description: 'Jet-plane flanging',
+    params: [
+      { id: 'rate', label: 'Rate', type: 'knob', min: 0.05, max: 5, step: 0.05, unit: 'Hz', defaultValue: 0.3 },
+      { id: 'depth', label: 'Depth', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'feedback', label: 'Feedback', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
+      { id: 'manual', label: 'Manual', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+    ],
+  },
+  {
+    typeId: 'analog-delay',
+    name: 'Analog Delay',
+    category: 'delay',
+    shortLabel: 'DLY',
+    description: 'Warm bucket-brigade delay',
+    params: [
+      { id: 'time', label: 'Time', type: 'slider', min: 50, max: 600, step: 5, unit: 'ms', defaultValue: 350 },
+      { id: 'feedback', label: 'Feedback', type: 'knob', min: 0, max: 95, step: 1, unit: '%', defaultValue: 35 },
+      { id: 'mix', label: 'Mix', type: 'knob', min: 0, max: 100, step: 1, unit: '%', defaultValue: 30 },
+    ],
+  },
+  {
+    typeId: 'digital-delay',
+    name: 'Digital Delay',
+    category: 'delay',
+    shortLabel: 'DD',
+    description: 'Clean digital repeats',
+    params: [
+      { id: 'time', label: 'Time', type: 'slider', min: 20, max: 2000, step: 10, unit: 'ms', defaultValue: 420 },
+      { id: 'feedback', label: 'Feedback', type: 'knob', min: 0, max: 95, step: 1, unit: '%', defaultValue: 40 },
+      { id: 'mix', label: 'Mix', type: 'knob', min: 0, max: 100, step: 1, unit: '%', defaultValue: 25 },
+      { id: 'highCut', label: 'Hi-Cut', type: 'knob', min: 1, max: 10, step: 0.1, defaultValue: 5 },
+    ],
+  },
+  {
+    typeId: 'tape-echo',
+    name: 'Tape Echo',
+    category: 'delay',
+    shortLabel: 'TAPE',
+    description: 'Wow/flutter tape delay',
+    params: [
+      { id: 'time', label: 'Time', type: 'slider', min: 80, max: 800, step: 5, unit: 'ms', defaultValue: 280 },
+      { id: 'feedback', label: 'Feedback', type: 'knob', min: 0, max: 90, step: 1, unit: '%', defaultValue: 45 },
+      { id: 'mix', label: 'Mix', type: 'knob', min: 0, max: 100, step: 1, unit: '%', defaultValue: 35 },
+      { id: 'wow', label: 'Wow', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 3 },
+    ],
+  },
+  {
+    typeId: 'spring-reverb',
+    name: 'Spring Reverb',
+    category: 'reverb',
+    shortLabel: 'SPR',
+    description: 'Amp-style spring tank',
+    params: [
+      { id: 'dwell', label: 'Dwell', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
+      { id: 'mix', label: 'Mix', type: 'knob', min: 0, max: 100, step: 1, unit: '%', defaultValue: 25 },
+      { id: 'tone', label: 'Tone', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+    ],
+  },
+  {
+    typeId: 'hall-reverb',
+    name: 'Hall Reverb',
+    category: 'reverb',
+    shortLabel: 'HALL',
+    description: 'Spacious hall ambience',
+    params: [
+      { id: 'decay', label: 'Decay', type: 'slider', min: 0.5, max: 8, step: 0.1, unit: 's', defaultValue: 2.5 },
+      { id: 'predelay', label: 'Pre-Delay', type: 'knob', min: 0, max: 150, step: 5, unit: 'ms', defaultValue: 30 },
+      { id: 'mix', label: 'Mix', type: 'knob', min: 0, max: 100, step: 1, unit: '%', defaultValue: 20 },
+      { id: 'damping', label: 'Damping', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+    ],
+  },
+  {
+    typeId: 'plate-reverb',
+    name: 'Plate Reverb',
+    category: 'reverb',
+    shortLabel: 'PLT',
+    description: 'Studio plate reverb',
+    params: [
+      { id: 'decay', label: 'Decay', type: 'slider', min: 0.3, max: 6, step: 0.1, unit: 's', defaultValue: 1.8 },
+      { id: 'mix', label: 'Mix', type: 'knob', min: 0, max: 100, step: 1, unit: '%', defaultValue: 22 },
+      { id: 'tone', label: 'Tone', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 6 },
+    ],
+  },
+  {
+    typeId: 'twin-reverb',
+    name: 'Twin Reverb',
+    category: 'amp',
+    shortLabel: 'TWIN',
+    description: 'Clean American twin',
+    params: [
+      { id: 'volume', label: 'Volume', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
+      { id: 'treble', label: 'Treble', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'middle', label: 'Middle', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'bass', label: 'Bass', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'reverb', label: 'Reverb', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 3 },
+      { id: 'bright', label: 'Bright', type: 'toggle', defaultValue: true },
+    ],
+  },
+  {
+    typeId: 'plexiglas',
+    name: 'Plexi 100W',
+    category: 'amp',
+    shortLabel: 'PLX',
+    description: 'Classic British stack',
+    params: [
+      { id: 'presence', label: 'Presence', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'bass', label: 'Bass', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
+      { id: 'middle', label: 'Middle', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 6 },
+      { id: 'treble', label: 'Treble', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 6 },
+      { id: 'volume', label: 'Volume', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 6 },
+    ],
+  },
+  {
+    typeId: 'rectifier',
+    name: 'Dual Rectifier',
+    category: 'amp',
+    shortLabel: 'RECT',
+    description: 'Modern high-gain beast',
+    params: [
+      { id: 'gain', label: 'Gain', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 7 },
+      { id: 'treble', label: 'Treble', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 6 },
+      { id: 'mid', label: 'Mid', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 3 },
+      { id: 'bass', label: 'Bass', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'presence', label: 'Presence', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'master', label: 'Master', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
+      { id: 'channel', label: 'Channel', type: 'select', options: ['Orange', 'Red', 'Modern'], defaultValue: 'Modern' },
+    ],
+  },
+  {
+    typeId: 'ac30',
+    name: 'AC30 Top Boost',
+    category: 'amp',
+    shortLabel: 'AC30',
+    description: 'Chimey British combo',
+    params: [
+      { id: 'normalVol', label: 'Normal Vol', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 0 },
+      { id: 'brilliantVol', label: 'Brilliant Vol', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'treble', label: 'Treble', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 6 },
+      { id: 'bass', label: 'Bass', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
+      { id: 'cut', label: 'Cut', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 3 },
+    ],
+  },
+  {
+    typeId: '4x12-greenbacks',
+    name: '4×12 Greenbacks',
+    category: 'cab',
+    shortLabel: 'GB',
+    description: 'Classic Celestion Greenback IR',
+    params: [
+      { id: 'mic', label: 'Mic', type: 'select', options: ['SM57', 'MD421', 'R121', 'U87'], defaultValue: 'SM57' },
+      { id: 'position', label: 'Position', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 3 },
+      { id: 'distance', label: 'Distance', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 2 },
+      { id: 'lowCut', label: 'Low Cut', type: 'slider', min: 20, max: 200, step: 5, unit: 'Hz', defaultValue: 80 },
+      { id: 'highCut', label: 'High Cut', type: 'slider', min: 4000, max: 16000, step: 100, unit: 'Hz', defaultValue: 10000 },
+    ],
+  },
+  {
+    typeId: '2x12-blue',
+    name: '2×12 Blue Alnico',
+    category: 'cab',
+    shortLabel: 'BLU',
+    description: 'Open-back alnico blues',
+    params: [
+      { id: 'mic', label: 'Mic', type: 'select', options: ['SM57', 'MD421', 'R121', 'U87'], defaultValue: 'R121' },
+      { id: 'position', label: 'Position', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
+      { id: 'distance', label: 'Distance', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 3 },
+      { id: 'room', label: 'Room', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 2 },
+    ],
+  },
+  {
+    typeId: '4x12-v30',
+    name: '4×12 V30',
+    category: 'cab',
+    shortLabel: 'V30',
+    description: 'Modern V30 closed-back',
+    params: [
+      { id: 'mic', label: 'Mic', type: 'select', options: ['SM57', 'MD421', 'R121', 'U87'], defaultValue: 'SM57' },
+      { id: 'position', label: 'Position', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 2 },
+      { id: 'distance', label: 'Distance', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 1 },
+      { id: 'lowCut', label: 'Low Cut', type: 'slider', min: 20, max: 200, step: 5, unit: 'Hz', defaultValue: 90 },
+      { id: 'highCut', label: 'High Cut', type: 'slider', min: 4000, max: 16000, step: 100, unit: 'Hz', defaultValue: 9000 },
+    ],
+  },
+];
+
+export function getBlockType(typeId: string): BlockTypeDef | undefined {
+  return BLOCK_CATALOG.find((b) => b.typeId === typeId);
+}
+
+export function createBlockParams(typeId: string): Record<string, number | string | boolean> {
+  const def = getBlockType(typeId);
+  if (!def) return {};
+  const params: Record<string, number | string | boolean> = {};
+  for (const p of def.params) {
+    params[p.id] = p.defaultValue;
+  }
+  return params;
+}
