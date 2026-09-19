@@ -371,7 +371,7 @@ export class ToneEngine {
           stage = this.createMod(ctx, block.params, def.typeId);
           break;
         case 'delay':
-          stage = this.createDelay(ctx, block.params);
+          stage = this.createDelay(ctx, block.params, def.typeId);
           break;
         case 'reverb':
           stage = this.createReverb(ctx, block.params, def.typeId);
@@ -471,16 +471,31 @@ export class ToneEngine {
 
     const apply = (p: Record<string, number | string | boolean>) => {
       const amt = driveAmountFromParams('amp', p);
-      const cleanBias = typeId === 'twin-reverb' ? 0.22 : typeId === 'ac30' ? 0.38 : 1;
+      // Twin: clean headroom; Deluxe: earlier blackface breakup; AC30: chimey grind
+      const cleanBias =
+        typeId === 'twin-reverb'
+          ? 0.22
+          : typeId === 'deluxe-reverb'
+            ? 0.45
+            : typeId === 'ac30'
+              ? 0.38
+              : 1;
       applyDriveCurve(shaper, Math.min(1, amt * cleanBias));
-      inGain.gain.value = 0.5 + amt * 0.55;
+      inGain.gain.value = 0.5 + amt * (typeId === 'deluxe-reverb' ? 0.7 : 0.55);
 
       bass.gain.value = (Number(p.bass ?? 5) - 5) * 3;
       const midVal = Number(p.middle ?? p.mid ?? 5);
-      mid.gain.value = (midVal - 5) * 4 + (typeId === 'rectifier' ? -3 : 0);
-      treble.gain.value = (Number(p.treble ?? 5) - 5) * 3.5 + (p.bright === true ? 3 : 0);
+      mid.gain.value =
+        (midVal - 5) * 4 +
+        (typeId === 'rectifier' ? -3 : typeId === 'deluxe-reverb' ? 1.2 : 0);
+      treble.gain.value =
+        (Number(p.treble ?? 5) - 5) * 3.5 +
+        (p.bright === true ? (typeId === 'deluxe-reverb' ? 2.2 : 3) : 0);
       if (typeId === 'ac30') {
         presence.gain.value = (5 - Number(p.cut ?? 3)) * 1.6;
+      } else if (typeId === 'deluxe-reverb') {
+        // Mild presence lift — open combo sparkle without twin shimmer
+        presence.gain.value = (Number(p.presence ?? 5.5) - 5) * 2 + 1;
       } else {
         presence.gain.value = (Number(p.presence ?? 5) - 5) * 2.5;
       }
@@ -572,6 +587,7 @@ export class ToneEngine {
   private createDelay(
     ctx: AudioContext,
     params: Record<string, number | string | boolean>,
+    typeId: string,
   ): Stage {
     const entry = ctx.createGain();
     const dry = ctx.createGain();
@@ -581,6 +597,16 @@ export class ToneEngine {
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
     const exit = ctx.createGain();
+
+    // Tape wow/flutter LFO modulates delay time
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.7;
+    lfoGain.gain.value = 0;
+    lfo.connect(lfoGain);
+    lfoGain.connect(delay.delayTime);
+    lfo.start();
 
     entry.connect(dry);
     entry.connect(delay);
@@ -592,19 +618,36 @@ export class ToneEngine {
     wet.connect(exit);
 
     const apply = (p: Record<string, number | string | boolean>) => {
-      delay.delayTime.value = Math.min(2.4, Number(p.time ?? 350) / 1000);
+      const timeSec = Math.min(2.4, Number(p.time ?? 350) / 1000);
+      delay.delayTime.value = timeSec;
       feedback.gain.value = (Number(p.feedback ?? 35) / 100) * 0.85;
       const mix = Number(p.mix ?? 30) / 100;
       dry.gain.value = 1 - mix * 0.35;
       wet.gain.value = mix;
-      filter.frequency.value = 1800 + Number(p.highCut ?? 5) * 700;
-      filter.Q.value = 0.5 + Number(p.wow ?? 0) * 0.04;
+
+      if (typeId === 'digital-delay') {
+        // Clean digital: wider bandwidth via Hi-Cut, no wow
+        filter.frequency.value = 2500 + Number(p.highCut ?? 5) * 1100;
+        filter.Q.value = 0.4;
+        lfoGain.gain.value = 0;
+      } else if (typeId === 'tape-echo') {
+        // Warm tape: darker repeats + wow depth
+        filter.frequency.value = 1400 + Number(p.wow ?? 3) * 180;
+        filter.Q.value = 0.7;
+        lfo.frequency.value = 0.45 + Number(p.wow ?? 3) * 0.08;
+        lfoGain.gain.value = (Number(p.wow ?? 3) / 10) * Math.min(0.012, timeSec * 0.04);
+      } else {
+        // Analog BBD: mid warmth, slight softness
+        filter.frequency.value = 1600 + Number(p.highCut ?? 4) * 400;
+        filter.Q.value = 0.55;
+        lfoGain.gain.value = 0;
+      }
     };
     apply(params);
     return {
       entry,
       exit,
-      nodes: [entry, dry, wet, delay, feedback, filter, exit],
+      nodes: [entry, dry, wet, delay, feedback, filter, exit, lfo, lfoGain],
       apply,
     };
   }
@@ -617,25 +660,37 @@ export class ToneEngine {
     const entry = ctx.createGain();
     const dry = ctx.createGain();
     const wet = ctx.createGain();
+    const preDelay = ctx.createDelay(0.2);
+    const tone = ctx.createBiquadFilter();
+    tone.type = 'lowpass';
     const conv = ctx.createConvolver();
     const exit = ctx.createGain();
 
     const decay = Number(params.decay ?? params.dwell ?? 2);
-    const seconds =
-      typeId === 'spring-reverb'
-        ? 1.1
-        : typeId === 'plate-reverb'
-          ? Math.min(2.8, Math.max(0.6, decay))
-          : Math.min(4, Math.max(0.8, decay));
-    conv.buffer = makeReverbImpulse(
-      ctx,
-      seconds,
-      typeId === 'spring-reverb' ? 1.6 : 2.3,
-    );
+    let seconds: number;
+    let impulseDecay: number;
+    if (typeId === 'spring-reverb') {
+      seconds = 1.1;
+      impulseDecay = 1.6;
+    } else if (typeId === 'room-reverb') {
+      // Shorter, denser room vs hall
+      seconds = Math.min(1.6, Math.max(0.25, decay * 0.85));
+      impulseDecay = 2.8;
+    } else if (typeId === 'plate-reverb') {
+      seconds = Math.min(2.8, Math.max(0.6, decay));
+      impulseDecay = 2.1;
+    } else {
+      // hall
+      seconds = Math.min(4, Math.max(0.8, decay));
+      impulseDecay = 2.3;
+    }
+    conv.buffer = makeReverbImpulse(ctx, seconds, impulseDecay);
 
     entry.connect(dry);
-    entry.connect(conv);
-    conv.connect(wet);
+    entry.connect(preDelay);
+    preDelay.connect(conv);
+    conv.connect(tone);
+    tone.connect(wet);
     dry.connect(exit);
     wet.connect(exit);
 
@@ -643,9 +698,23 @@ export class ToneEngine {
       const mix = Number(p.mix ?? 25) / 100;
       dry.gain.value = 1 - mix * 0.5;
       wet.gain.value = mix * 0.85;
+      preDelay.delayTime.value = Math.min(0.18, Number(p.predelay ?? 0) / 1000);
+      // Tone: brighter at high values (plate/room/spring)
+      const toneVal = Number(p.tone ?? p.damping ?? 5);
+      if (typeId === 'hall-reverb') {
+        // Hall uses damping (higher = darker)
+        tone.frequency.value = 9000 - toneVal * 600;
+      } else {
+        tone.frequency.value = 1800 + toneVal * 900;
+      }
     };
     apply(params);
-    return { entry, exit, nodes: [entry, dry, wet, conv, exit], apply };
+    return {
+      entry,
+      exit,
+      nodes: [entry, dry, wet, preDelay, tone, conv, exit],
+      apply,
+    };
   }
 
   private createCab(
@@ -669,7 +738,9 @@ export class ToneEngine {
         ? 'greenback'
         : typeId.includes('blue')
           ? 'blue'
-          : 'generic';
+          : typeId.includes('deluxe')
+            ? 'deluxe'
+            : 'generic';
     conv.buffer = makeCabImpulse(ctx, kind);
     const wet = ctx.createGain();
     wet.gain.value = 0.5;
@@ -688,10 +759,18 @@ export class ToneEngine {
 
     const apply = (p: Record<string, number | string | boolean>) => {
       const dist = Number(p.distance ?? 2) / 10;
-      low.frequency.value = Number(p.lowCut ?? 80);
-      const hi = Number(p.highCut ?? 10000) * (1 - dist * 0.35);
+      const defaultLow = typeId.includes('deluxe') ? 70 : 80;
+      const defaultHi = typeId.includes('deluxe') ? 12000 : 10000;
+      low.frequency.value = Number(p.lowCut ?? defaultLow);
+      // Open-back deluxe keeps more air; closed cabs darken with distance faster
+      const distFactor = typeId.includes('deluxe') || typeId.includes('blue') ? 0.22 : 0.35;
+      const hi = Number(p.highCut ?? defaultHi) * (1 - dist * distFactor);
       high.frequency.value = Math.max(2500, hi);
       bump.gain.value = (0.5 - Number(p.position ?? 3) / 10) * 4;
+      // Room knob (open-back cabs): slight wet tilt via bump Q / entry
+      if (p.room !== undefined) {
+        bump.Q.value = 0.6 + Number(p.room) * 0.05;
+      }
     };
     apply(params);
     return {

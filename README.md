@@ -5,11 +5,12 @@ A polished web app for guitarists to design, preview, and document guitar tones 
 ## Features
 
 - **Signal chain builder** — add, reorder, and remove drive, modulation, delay/reverb, amp, and cab/IR blocks
+- **Block catalog** — Tube Screamer / Rat / Fuzz / Boost; Twin & Deluxe Reverb, Plexi, Rectifier, AC30; digital / tape / analog delays; spring, room, plate, hall reverbs; Greenback / Blue / Deluxe / V30 cabs
 - **Parameter controls** — knobs, sliders, toggles, and selects with sensible defaults
 - **Synth tone preview** — Play/Stop Web Audio preview (oscillator source → waveshaper drive/amp → EQ → delay/reverb → cab). Updates while playing when knobs change. Audio starts only after a user gesture (Play) for browser autoplay policy.
 - **Live guitar input** — route your guitar via an audio interface (`getUserMedia`) into the same tone chain; device picker, monitoring arm button, and a simple input level meter
 - **Tone library** — save, rename, duplicate, and delete presets (persisted in `localStorage`)
-- **Seed tones** — Clean Jazz, Classic Rock Crunch, Modern High-Gain, Ambient Wash
+- **Seed tones** — Clean Jazz, Classic Rock Crunch, Modern High-Gain, Deluxe Blues, Ambient Wash
 - **Tone notes** — free-text notes per preset
 - **Compare mode** — side-by-side A/B between two saved tones; switch which graph is audible
 - **Export** — copy a human-readable recipe or download JSON

@@ -124,7 +124,7 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
   },
   {
     typeId: 'tape-echo',
-    name: 'Tape Echo',
+    name: 'Tape Delay',
     category: 'delay',
     shortLabel: 'TAPE',
     description: 'Wow/flutter tape delay',
@@ -167,9 +167,22 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
     shortLabel: 'PLT',
     description: 'Studio plate reverb',
     params: [
-      { id: 'decay', label: 'Decay', type: 'slider', min: 0.3, max: 6, step: 0.1, unit: 's', defaultValue: 1.8 },
-      { id: 'mix', label: 'Mix', type: 'knob', min: 0, max: 100, step: 1, unit: '%', defaultValue: 22 },
+      { id: 'decay', label: 'Time', type: 'slider', min: 0.3, max: 6, step: 0.1, unit: 's', defaultValue: 1.8 },
       { id: 'tone', label: 'Tone', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 6 },
+      { id: 'mix', label: 'Mix', type: 'knob', min: 0, max: 100, step: 1, unit: '%', defaultValue: 22 },
+    ],
+  },
+  {
+    typeId: 'room-reverb',
+    name: 'Room Reverb',
+    category: 'reverb',
+    shortLabel: 'ROOM',
+    description: 'Short room ambience',
+    params: [
+      { id: 'decay', label: 'Time', type: 'slider', min: 0.2, max: 2.5, step: 0.05, unit: 's', defaultValue: 0.7 },
+      { id: 'tone', label: 'Tone', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'mix', label: 'Mix', type: 'knob', min: 0, max: 100, step: 1, unit: '%', defaultValue: 18 },
+      { id: 'predelay', label: 'Pre-Delay', type: 'knob', min: 0, max: 80, step: 1, unit: 'ms', defaultValue: 12 },
     ],
   },
   {
@@ -185,6 +198,21 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
       { id: 'bass', label: 'Bass', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
       { id: 'reverb', label: 'Reverb', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 3 },
       { id: 'bright', label: 'Bright', type: 'toggle', defaultValue: true },
+    ],
+  },
+  {
+    typeId: 'deluxe-reverb',
+    name: 'Deluxe Reverb',
+    category: 'amp',
+    shortLabel: 'DLX',
+    description: 'Fender blackface deluxe — edge-of-breakup American combo',
+    params: [
+      { id: 'volume', label: 'Volume', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'treble', label: 'Treble', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5.5 },
+      { id: 'middle', label: 'Middle', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
+      { id: 'bass', label: 'Bass', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4.5 },
+      { id: 'reverb', label: 'Reverb', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 3.5 },
+      { id: 'bright', label: 'Bright', type: 'toggle', defaultValue: false },
     ],
   },
   {
@@ -256,6 +284,21 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
       { id: 'position', label: 'Position', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
       { id: 'distance', label: 'Distance', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 3 },
       { id: 'room', label: 'Room', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 2 },
+    ],
+  },
+  {
+    typeId: '1x12-deluxe',
+    name: '1×12 Deluxe',
+    category: 'cab',
+    shortLabel: 'DLX',
+    description: 'Oxford/Jensen-voiced open-back combo cab',
+    params: [
+      { id: 'mic', label: 'Mic', type: 'select', options: ['SM57', 'MD421', 'R121', 'U87'], defaultValue: 'SM57' },
+      { id: 'position', label: 'Position', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
+      { id: 'distance', label: 'Distance', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 3 },
+      { id: 'room', label: 'Room', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 2.5 },
+      { id: 'lowCut', label: 'Low Cut', type: 'slider', min: 20, max: 200, step: 5, unit: 'Hz', defaultValue: 70 },
+      { id: 'highCut', label: 'High Cut', type: 'slider', min: 4000, max: 16000, step: 100, unit: 'Hz', defaultValue: 12000 },
     ],
   },
   {

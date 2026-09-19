@@ -89,6 +89,34 @@ export const SEED_TONES: TonePreset[] = [
     updatedAt: now,
   },
   {
+    id: 'seed-deluxe-blues',
+    name: 'Deluxe Blues',
+    notes:
+      'Edge-of-breakup Fender Deluxe Reverb with a touch of spring and tape slap. Neck or middle pickup, pick attack for growl. 1×12 open-back cab, SM57 slightly off-axis.',
+    chain: [
+      block('deluxe-reverb', {
+        volume: 5.5,
+        treble: 5.5,
+        middle: 5,
+        bass: 4,
+        reverb: 3,
+        bright: false,
+      }),
+      block('tape-echo', { time: 180, feedback: 22, mix: 18, wow: 2 }),
+      block('spring-reverb', { dwell: 3.5, mix: 20, tone: 5 }),
+      block('1x12-deluxe', {
+        mic: 'SM57',
+        position: 4,
+        distance: 3,
+        room: 2.5,
+        lowCut: 70,
+        highCut: 12000,
+      }),
+    ],
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
     id: 'seed-ambient-wash',
     name: 'Ambient Wash',
     notes:
