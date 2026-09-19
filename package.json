@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "neural-amp-modeler-wasm": "^2.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
@@ -22,5 +23,5 @@
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
   },
-  "description": "Factory amp-sim web app: algorithmic amps/cabs, live input, tone design"
+  "description": "AmpliTube-style gear suite amp-sim with NAM (.nam) import"
 }

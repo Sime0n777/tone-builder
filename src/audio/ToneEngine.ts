@@ -1,7 +1,9 @@
+import { NamEngine, type NamNode } from 'neural-amp-modeler-wasm/engine';
 import { getBlockType } from '../data/blockCatalog';
 import type { ChainBlock, TonePreset } from '../types/tone';
 import { channelDriveBias, getAmpVoice } from './ampModels';
 import { cabKindFromTypeId, makeCabImpulse, makeReverbImpulse } from './impulse';
+import { getNamModel } from './namLibrary';
 import { applyDriveCurve, driveAmountFromParams } from './waveshaper';
 
 export type PreviewNote = 'E2' | 'A2' | 'D3' | 'G3' | 'B3' | 'E4';
@@ -20,20 +22,29 @@ interface Stage {
   entry: AudioNode;
   exit: AudioNode;
   nodes: AudioNode[];
+  namNodes?: NamNode[];
   apply: (params: Record<string, number | string | boolean>) => void;
+  /** Async param apply (e.g. slimSize) */
+  applyAsync?: (params: Record<string, number | string | boolean>) => Promise<void>;
 }
 
 interface BuiltGraph {
   input: GainNode;
   output: GainNode;
-  paramBindings: { blockId: string; apply: Stage['apply'] }[];
+  paramBindings: {
+    blockId: string;
+    apply: Stage['apply'];
+    applyAsync?: Stage['applyAsync'];
+  }[];
   disposables: AudioNode[];
+  namNodes: NamNode[];
+  /** true when a nam-amp fell back to algorithmic DSP */
+  namFallback: boolean;
 }
 
 /**
- * Factory amp-sim engine (algorithmic models — not neural captures).
- * Source (synth oscillators or live MediaStream) → drive → amp (preamp /
- * tone stack / power sag) → modulation/delay/reverb → cab IR → out.
+ * Amp-sim engine: algorithmic factory models + optional NAM (.nam) WASM
+ * inference via AudioWorklet. ToneX is not supported.
  */
 export class ToneEngine {
   private ctx: AudioContext | null = null;
@@ -51,6 +62,10 @@ export class ToneEngine {
   private note: PreviewNote = 'A2';
   private muted = false;
   private currentChain: ChainBlock[] = [];
+  private namEngine: NamEngine | null = null;
+  private namEnginePromise: Promise<NamEngine | null> | null = null;
+  /** Last NAM load status for UI */
+  lastNamStatus: { ok: boolean; message: string; fallback: boolean } | null = null;
 
   get isPlaying() {
     return this.playing;
@@ -101,7 +116,7 @@ export class ToneEngine {
   async start(preset: TonePreset, note: PreviewNote = this.note): Promise<void> {
     const ctx = await this.ensureContext();
     this.stopSourcesOnly();
-    this.teardownGraph();
+    await this.teardownGraph();
 
     this.sourceMode = 'synth';
     this.note = note;
@@ -110,7 +125,7 @@ export class ToneEngine {
       params: { ...b.params },
     }));
 
-    this.graph = this.buildGraph(ctx, preset.chain);
+    this.graph = await this.buildGraph(ctx, preset.chain);
     this.graph.output.connect(this.master!);
 
     this.sourceGain = ctx.createGain();
@@ -129,7 +144,7 @@ export class ToneEngine {
   async startLive(preset: TonePreset, stream: MediaStream): Promise<void> {
     const ctx = await this.ensureContext();
     this.stopSourcesOnly();
-    this.teardownGraph();
+    await this.teardownGraph();
 
     this.sourceMode = 'live';
     this.mediaStream = stream;
@@ -138,7 +153,7 @@ export class ToneEngine {
       params: { ...b.params },
     }));
 
-    this.graph = this.buildGraph(ctx, preset.chain);
+    this.graph = await this.buildGraph(ctx, preset.chain);
     this.graph.output.connect(this.master!);
 
     this.sourceGain = ctx.createGain();
@@ -171,14 +186,14 @@ export class ToneEngine {
     return Math.min(1, peak * 1.4);
   }
 
-  updatePreset(preset: TonePreset) {
+  async updatePreset(preset: TonePreset) {
     if (!this.playing || !this.ctx || !this.sourceGain || !this.master) return;
     this.currentChain = preset.chain.map((b) => ({
       ...b,
       params: { ...b.params },
     }));
-    this.teardownGraph();
-    this.graph = this.buildGraph(this.ctx, preset.chain);
+    await this.teardownGraph();
+    this.graph = await this.buildGraph(this.ctx, preset.chain);
 
     if (this.sourceMode === 'live' && this.analyser) {
       try {
@@ -203,7 +218,7 @@ export class ToneEngine {
       );
 
     if (!same) {
-      this.updatePreset(preset);
+      void this.updatePreset(preset);
       return;
     }
 
@@ -212,13 +227,15 @@ export class ToneEngine {
       params: { ...b.params },
     }));
     for (const block of preset.chain) {
-      this.graph.paramBindings.find((b) => b.blockId === block.id)?.apply(block.params);
+      const binding = this.graph.paramBindings.find((b) => b.blockId === block.id);
+      binding?.apply(block.params);
+      void binding?.applyAsync?.(block.params);
     }
   }
 
   stop() {
     this.stopSourcesOnly();
-    this.teardownGraph();
+    void this.teardownGraph();
     this.playing = false;
     this.sourceMode = 'synth';
   }
@@ -288,8 +305,15 @@ export class ToneEngine {
     }
   }
 
-  private teardownGraph() {
+  private async teardownGraph() {
     if (!this.graph) return;
+    for (const nam of this.graph.namNodes) {
+      try {
+        await nam.dispose();
+      } catch {
+        /* */
+      }
+    }
     for (const n of this.graph.disposables) {
       try {
         n.disconnect();
@@ -298,6 +322,27 @@ export class ToneEngine {
       }
     }
     this.graph = null;
+  }
+
+  private async ensureNamEngine(): Promise<NamEngine | null> {
+    if (this.namEngine) return this.namEngine;
+    if (this.namEnginePromise) return this.namEnginePromise;
+    this.namEnginePromise = (async () => {
+      try {
+        const ctx = await this.ensureContext();
+        this.namEngine = await NamEngine.attach(ctx, { assetBaseUrl: '/engine/' });
+        return this.namEngine;
+      } catch (err) {
+        console.warn('NAM engine attach failed', err);
+        this.lastNamStatus = {
+          ok: false,
+          message: err instanceof Error ? err.message : 'NAM engine failed to load',
+          fallback: true,
+        };
+        return null;
+      }
+    })();
+    return this.namEnginePromise;
   }
 
   private startSources(ctx: AudioContext, freq: number) {
@@ -342,11 +387,13 @@ export class ToneEngine {
     this.noiseSource = noise;
   }
 
-  private buildGraph(ctx: AudioContext, chain: ChainBlock[]): BuiltGraph {
+  private async buildGraph(ctx: AudioContext, chain: ChainBlock[]): Promise<BuiltGraph> {
     const input = ctx.createGain();
     const output = ctx.createGain();
     const disposables: AudioNode[] = [input, output];
     const paramBindings: BuiltGraph['paramBindings'] = [];
+    const namNodes: NamNode[] = [];
+    let namFallback = false;
 
     const chainNodes: AudioNode[] = [input];
 
@@ -361,32 +408,55 @@ export class ToneEngine {
       if (!def) continue;
 
       let stage: Stage | null = null;
-      switch (def.category) {
-        case 'drive':
-          stage = this.createDrive(ctx, block.params, def.typeId);
-          break;
-        case 'amp':
-          stage = this.createAmp(ctx, block.params, def.typeId);
-          break;
-        case 'modulation':
-          stage = this.createMod(ctx, block.params, def.typeId);
-          break;
-        case 'delay':
-          stage = this.createDelay(ctx, block.params, def.typeId);
-          break;
-        case 'reverb':
-          stage = this.createReverb(ctx, block.params, def.typeId);
-          break;
-        case 'cab':
-          stage = this.createCab(ctx, block.params, def.typeId);
-          break;
+      if (def.typeId === 'nam-amp') {
+        stage = await this.createNamAmp(ctx, block.params);
+        if (stage.namNodes?.length) namNodes.push(...stage.namNodes);
+        else namFallback = true;
+      } else if (def.typeId === 'compressor') {
+        stage = this.createCompressor(ctx, block.params);
+      } else if (def.typeId === 'noise-gate') {
+        stage = this.createNoiseGate(ctx, block.params);
+      } else if (def.typeId === 'parametric-eq') {
+        stage = this.createEq(ctx, block.params);
+      } else {
+        switch (def.category) {
+          case 'drive':
+            stage = this.createDrive(ctx, block.params, def.typeId);
+            break;
+          case 'amp':
+            stage = this.createAmp(ctx, block.params, def.typeId);
+            break;
+          case 'modulation':
+            stage = this.createMod(ctx, block.params, def.typeId);
+            break;
+          case 'delay':
+            stage = this.createDelay(ctx, block.params, def.typeId);
+            break;
+          case 'reverb':
+            stage = this.createReverb(ctx, block.params, def.typeId);
+            break;
+          case 'cab':
+            stage = this.createCab(ctx, block.params, def.typeId);
+            break;
+          case 'eq':
+            stage = this.createEq(ctx, block.params);
+            break;
+        }
       }
       if (!stage) continue;
 
-      disposables.push(...stage.nodes);
+      const namSet = new Set<AudioNode>(stage.namNodes ?? []);
+      for (const n of stage.nodes) {
+        if (!namSet.has(n) && !disposables.includes(n)) disposables.push(n);
+      }
+
       chainNodes.push(stage.entry);
       if (stage.exit !== stage.entry) chainNodes.push(stage.exit);
-      paramBindings.push({ blockId: block.id, apply: stage.apply });
+      paramBindings.push({
+        blockId: block.id,
+        apply: stage.apply,
+        applyAsync: stage.applyAsync,
+      });
     }
 
     const limiter = ctx.createDynamicsCompressor();
@@ -402,7 +472,193 @@ export class ToneEngine {
       chainNodes[i]!.connect(chainNodes[i + 1]!);
     }
 
-    return { input, output, paramBindings, disposables };
+    return { input, output, paramBindings, disposables, namNodes, namFallback };
+  }
+
+
+  private async createNamAmp(
+    ctx: AudioContext,
+    params: Record<string, number | string | boolean>,
+  ): Promise<Stage> {
+    const entry = ctx.createGain();
+    const exit = ctx.createGain();
+    const level = ctx.createGain();
+    const modelId = String(params.modelId ?? '');
+    const slim = Number(params.slimSize ?? 0.5);
+
+    const applyLevel = (p: Record<string, number | string | boolean>) => {
+      level.gain.value = 0.35 + (Number(p.level ?? 5) / 10) * 0.7;
+    };
+
+    // Strengthened algorithmic fallback (identity shown in UI via modelName)
+    const fallback = this.createAmp(
+      ctx,
+      {
+        volume: Number(params.level ?? 5),
+        treble: 5.5,
+        middle: 5.5,
+        bass: 5,
+        presence: 5,
+        master: Number(params.level ?? 5),
+        bright: false,
+      },
+      'jcm800',
+    );
+
+    let namNode: NamNode | null = null;
+    let usingNam = false;
+
+    try {
+      const engine = await this.ensureNamEngine();
+      const entryRow = modelId ? await getNamModel(modelId) : null;
+      if (engine && entryRow?.json) {
+        namNode = await engine.createNode();
+        await namNode.loadModel(entryRow.json, { slimSize: slim });
+        entry.connect(namNode);
+        namNode.connect(level);
+        level.connect(exit);
+        usingNam = true;
+        this.lastNamStatus = {
+          ok: true,
+          message: `NAM loaded: ${entryRow.displayName}`,
+          fallback: false,
+        };
+      } else {
+        throw new Error(
+          modelId
+            ? 'NAM model not found in library — re-import the .nam file'
+            : 'No NAM model selected — drop a .nam file onto the amp slot',
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'NAM load failed';
+      this.lastNamStatus = { ok: false, message: msg, fallback: true };
+      if (namNode) {
+        try {
+          await namNode.dispose();
+        } catch {
+          /* */
+        }
+        namNode = null;
+      }
+      entry.connect(fallback.entry);
+      fallback.exit.connect(level);
+      level.connect(exit);
+    }
+
+    applyLevel(params);
+
+    const nodes: AudioNode[] = usingNam
+      ? [entry, namNode!, level, exit]
+      : [entry, ...fallback.nodes, level, exit];
+
+    let lastSlim = slim;
+    const apply = (p: Record<string, number | string | boolean>) => {
+      applyLevel(p);
+      if (!usingNam) fallback.apply({
+        ...p,
+        volume: Number(p.level ?? 5),
+        master: Number(p.level ?? 5),
+        preamp: Number(p.level ?? 5),
+      });
+    };
+
+    const applyAsync = async (p: Record<string, number | string | boolean>) => {
+      if (!usingNam || !namNode) return;
+      const nextSlim = Number(p.slimSize ?? 0.5);
+      if (Math.abs(nextSlim - lastSlim) < 0.01) return;
+      lastSlim = nextSlim;
+      try {
+        await namNode.setSlimSize(nextSlim);
+      } catch {
+        /* non-slimmable models ignore */
+      }
+    };
+
+    return {
+      entry,
+      exit,
+      nodes,
+      namNodes: namNode ? [namNode] : [],
+      apply,
+      applyAsync,
+    };
+  }
+
+  private createCompressor(
+    ctx: AudioContext,
+    params: Record<string, number | string | boolean>,
+  ): Stage {
+    const entry = ctx.createGain();
+    const comp = ctx.createDynamicsCompressor();
+    const makeup = ctx.createGain();
+    entry.connect(comp);
+    comp.connect(makeup);
+
+    const apply = (p: Record<string, number | string | boolean>) => {
+      comp.threshold.value = Number(p.threshold ?? -18);
+      comp.knee.value = 8;
+      comp.ratio.value = Math.max(1, Number(p.ratio ?? 3));
+      comp.attack.value = 0.003 + (Number(p.attack ?? 3) / 10) * 0.05;
+      comp.release.value = 0.05 + (Number(p.release ?? 5) / 10) * 0.35;
+      makeup.gain.value = 0.7 + (Number(p.level ?? 5) / 10) * 0.55;
+    };
+    apply(params);
+    return { entry, exit: makeup, nodes: [entry, comp, makeup], apply };
+  }
+
+  private createNoiseGate(
+    ctx: AudioContext,
+    params: Record<string, number | string | boolean>,
+  ): Stage {
+    // Approximate gate with expander-ish compressor + makeup
+    const entry = ctx.createGain();
+    const gate = ctx.createDynamicsCompressor();
+    const out = ctx.createGain();
+    entry.connect(gate);
+    gate.connect(out);
+
+    const apply = (p: Record<string, number | string | boolean>) => {
+      // Map threshold dB-ish into compressor threshold; high ratio = gate-like
+      const thr = Number(p.threshold ?? -45);
+      gate.threshold.value = thr + 10;
+      gate.knee.value = 2;
+      gate.ratio.value = 12;
+      gate.attack.value = 0.001 + (Number(p.attack ?? 2) / 10) * 0.01;
+      const hold = Number(p.hold ?? 3) / 10;
+      gate.release.value = 0.04 + hold * 0.15 + (Number(p.release ?? 4) / 10) * 0.2;
+      out.gain.value = 1;
+    };
+    apply(params);
+    return { entry, exit: out, nodes: [entry, gate, out], apply };
+  }
+
+  private createEq(
+    ctx: AudioContext,
+    params: Record<string, number | string | boolean>,
+  ): Stage {
+    const entry = ctx.createGain();
+    const low = ctx.createBiquadFilter();
+    low.type = 'lowshelf';
+    const mid = ctx.createBiquadFilter();
+    mid.type = 'peaking';
+    const high = ctx.createBiquadFilter();
+    high.type = 'highshelf';
+    entry.connect(low);
+    low.connect(mid);
+    mid.connect(high);
+
+    const apply = (p: Record<string, number | string | boolean>) => {
+      low.frequency.value = Number(p.lowFreq ?? 120);
+      low.gain.value = Number(p.lowGain ?? 0);
+      mid.frequency.value = Number(p.midFreq ?? 800);
+      mid.Q.value = Math.max(0.2, Number(p.midQ ?? 1));
+      mid.gain.value = Number(p.midGain ?? 0);
+      high.frequency.value = Number(p.highFreq ?? 4500);
+      high.gain.value = Number(p.highGain ?? 0);
+    };
+    apply(params);
+    return { entry, exit: high, nodes: [entry, low, mid, high], apply };
   }
 
   private createDrive(
@@ -525,7 +781,7 @@ export class ToneEngine {
 
     const apply = (p: Record<string, number | string | boolean>) => {
       const userGain =
-        Number(p.gain ?? p.volume ?? p.brilliantVol ?? 5) / 10;
+        Number(p.gain ?? p.preamp ?? p.volume ?? p.brilliantVol ?? 5) / 10;
       const channel = channelDriveBias(p.channel);
       const preAmt = Math.min(
         1,

@@ -33,7 +33,7 @@ export function Header({
         </div>
         <div>
           <h1>Tone Builder</h1>
-          <p className="tagline">Factory amp-sim · live input · tone design</p>
+          <p className="tagline">Gear suite · NAM import · live input · tone design</p>
         </div>
       </div>
       <div className="header-center">

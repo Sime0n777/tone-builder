@@ -139,4 +139,32 @@ export const SEED_TONES: TonePreset[] = [
     createdAt: now,
     updatedAt: now,
   },
+  {
+    id: 'seed-jcm-crunch',
+    name: 'JCM Hot Crunch',
+    notes:
+      'JCM800-ish British crunch with compressor into the amp and a touch of gate. Greenbacks + SM57. Kick the preamp for solos.',
+    chain: [
+      block('compressor', { threshold: -20, ratio: 2.5, attack: 2, release: 5, level: 5.5 }),
+      block('noise-gate', { threshold: -50, attack: 2, hold: 3, release: 4 }),
+      block('jcm800', {
+        preamp: 6,
+        bass: 3.5,
+        middle: 6.5,
+        treble: 6,
+        presence: 5.5,
+        master: 4.5,
+      }),
+      block('parametric-eq', { midGain: 1.5, midFreq: 900, midQ: 1.2, highGain: -1 }),
+      block('4x12-greenbacks', {
+        mic: 'SM57',
+        position: 2.5,
+        distance: 2,
+        lowCut: 85,
+        highCut: 9500,
+      }),
+    ],
+    createdAt: now,
+    updatedAt: now,
+  },
 ];

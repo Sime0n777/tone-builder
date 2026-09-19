@@ -1006,3 +1006,273 @@ button {
   color: var(--muted, #8b949e);
   line-height: 1.4;
 }
+
+/* —— AmpliTube-style rig / gear suite —— */
+.rig-board {
+  margin-bottom: 1.25rem;
+}
+
+.rig-toolbar {
+  margin-bottom: 0.75rem;
+}
+
+.rig-flow .flow-zone-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.flow-zone-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.rig-zones {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.rig-zone {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  padding: 0.85rem 1rem 1rem;
+  box-shadow: var(--shadow);
+}
+
+.rig-zone.zone-pedalboard {
+  border-top: 3px solid #e85d4c;
+}
+.rig-zone.zone-amp {
+  border-top: 3px solid #f0b429;
+}
+.rig-zone.zone-cab {
+  border-top: 3px solid #94a3b8;
+}
+.rig-zone.zone-rack {
+  border-top: 3px solid #6c8cff;
+}
+
+.rig-zone-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.rig-zone-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+
+.rig-zone-header p {
+  margin: 0.2rem 0 0;
+}
+
+.rig-zone-count {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+}
+
+.rig-zone-empty {
+  padding: 0.75rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.zone-list {
+  margin-top: 0.5rem;
+}
+
+/* Gear suite browser */
+.gear-browser {
+  margin-bottom: 1rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: linear-gradient(160deg, rgba(240, 180, 41, 0.05), rgba(108, 140, 255, 0.04));
+}
+
+.gear-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.gear-tab {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border-radius: 8px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gear-tab.active {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: rgba(240, 180, 41, 0.12);
+}
+
+.gear-search {
+  margin-bottom: 0.75rem;
+}
+
+.gear-search input {
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+}
+
+.gear-grid .catalog-cat {
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+}
+
+/* NAM import */
+.nam-import {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.nam-import.compact .nam-dropzone {
+  padding: 0.65rem 0.75rem;
+}
+
+.nam-dropzone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: rgba(240, 180, 41, 0.06);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.nam-import.drag-over .nam-dropzone,
+.nam-dropzone:hover {
+  border-color: var(--warn);
+  background: rgba(240, 180, 41, 0.12);
+}
+
+.nam-drop-copy {
+  flex: 1;
+  min-width: 180px;
+}
+
+.nam-drop-copy strong {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.nam-drop-copy code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  color: var(--warn);
+}
+
+.nam-model-list {
+  list-style: none;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.nam-model-row {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.nam-model-select {
+  flex: 1;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0.45rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.nam-model-select:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.nam-model-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.nam-status {
+  margin: 0.5rem 0 0;
+  padding: 0.45rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.nam-status.ok {
+  border: 1px solid rgba(61, 214, 140, 0.4);
+  background: rgba(61, 214, 140, 0.1);
+  color: #9af0c4;
+}
+
+.nam-status.warn {
+  border: 1px solid rgba(240, 180, 41, 0.45);
+  background: rgba(240, 180, 41, 0.1);
+  color: #f5d78e;
+}
+
+.block-card.nam-block {
+  background: linear-gradient(135deg, rgba(240, 180, 41, 0.08), var(--bg-card));
+}
+
+.nam-meta-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0 0 0.65rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(240, 180, 41, 0.25);
+  font-size: 0.82rem;
+}
+
+.catalog-hint {
+  margin: 0 0 0.65rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}

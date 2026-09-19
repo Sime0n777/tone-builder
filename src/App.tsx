@@ -1,11 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { CompareView } from './components/CompareView';
 import { EmptyState } from './components/EmptyState';
 import { ExportBar } from './components/ExportBar';
 import { Header } from './components/Header';
 import { NotesPanel } from './components/NotesPanel';
 import { PreviewControls } from './components/PreviewControls';
-import { SignalChain } from './components/SignalChain';
+import { RigBoard } from './components/RigBoard';
 import { ToneLibrary } from './components/ToneLibrary';
 import { useTonePreview } from './hooks/useTonePreview';
 import { useToneStore } from './hooks/useToneStore';
@@ -13,6 +13,11 @@ import { useToneStore } from './hooks/useToneStore';
 export default function App() {
   const store = useToneStore();
   const preview = useTonePreview();
+  const [namStatus, setNamStatus] = useState<{
+    ok: boolean;
+    message: string;
+    fallback: boolean;
+  } | null>(null);
 
   useEffect(() => {
     preview.syncPresets(store.activePreset, store.comparePreset, store.compareMode);
@@ -22,6 +27,14 @@ export default function App() {
     store.compareMode,
     preview.syncPresets,
   ]);
+
+  useEffect(() => {
+    if (!preview.playing) return;
+    const id = window.setInterval(() => {
+      setNamStatus(preview.getNamStatus());
+    }, 400);
+    return () => window.clearInterval(id);
+  }, [preview.playing, preview.getNamStatus]);
 
   const canCompare = store.presets.length >= 2;
 
@@ -111,12 +124,14 @@ export default function App() {
                   <ExportBar preset={store.activePreset} />
                 </div>
 
-                <SignalChain
+                <RigBoard
                   chain={store.activePreset.chain}
                   onAdd={store.addBlock}
+                  onAddNam={store.addNamBlock}
                   onRemove={store.removeBlock}
                   onMove={store.moveBlock}
                   onParamChange={store.setBlockParam}
+                  namStatus={namStatus}
                 />
 
                 <NotesPanel notes={store.activePreset.notes} onChange={store.setNotes} />
@@ -128,8 +143,8 @@ export default function App() {
 
       <footer className="app-footer">
         <span>
-          Tone Builder — local presets · synth preview · live guitar input · approximate Web
-          Audio
+          Tone Builder — factory gear suite · NAM (.nam) import · live input · synth preview · A/B
+          · export
         </span>
       </footer>
     </div>

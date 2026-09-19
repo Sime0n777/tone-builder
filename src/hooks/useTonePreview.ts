@@ -267,6 +267,10 @@ export function useTonePreview() {
     [playing, note, startLiveMonitoring],
   );
 
+  const getNamStatus = useCallback(() => {
+    return engineRef.current?.lastNamStatus ?? null;
+  }, []);
+
   return {
     playing,
     note,
@@ -287,5 +291,6 @@ export function useTonePreview() {
     setDeviceId,
     refreshDevices,
     startLiveMonitoring,
+    getNamStatus,
   };
 }

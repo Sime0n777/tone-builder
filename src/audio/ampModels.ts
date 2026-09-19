@@ -6,7 +6,7 @@
  * They aim for clearly differentiated factory amp flavors you pick and play.
  */
 
-export type AmpFamily = 'fender' | 'marshall' | 'vox' | 'mesa';
+export type AmpFamily = 'fender' | 'marshall' | 'vox' | 'mesa' | 'soldano';
 
 export interface AmpVoice {
   /** Stable id matching blockCatalog typeId */
@@ -151,6 +151,79 @@ export const AMP_VOICES: Record<string, AmpVoice> = {
     useCutControl: false,
     outputTrim: 0.88,
   },
+
+  bassman: {
+    typeId: 'bassman',
+    family: 'fender',
+    label: 'Bassman',
+    preampSensitivity: 0.48,
+    preampDriveScale: 0.9,
+    preampAsymmetry: 0.4,
+    powerDriveScale: 0.6,
+    sag: 0.38,
+    inputHpfHz: 50,
+    brightCapHz: 2500,
+    brightCapDb: 2.8,
+    midFreqHz: 480,
+    midQ: 0.7,
+    bassFreqHz: 90,
+    trebleFreqHz: 2800,
+    presenceFreqHz: 3800,
+    midBiasDb: 2.0,
+    trebleBiasDb: -0.5,
+    bassBiasDb: 2.5,
+    presenceBiasDb: 0.5,
+    useCutControl: false,
+    outputTrim: 0.96,
+  },
+  jcm800: {
+    typeId: 'jcm800',
+    family: 'marshall',
+    label: 'JCM800',
+    preampSensitivity: 0.7,
+    preampDriveScale: 1.25,
+    preampAsymmetry: 0.2,
+    powerDriveScale: 0.75,
+    sag: 0.42,
+    inputHpfHz: 85,
+    brightCapHz: 0,
+    brightCapDb: 0,
+    midFreqHz: 780,
+    midQ: 1.05,
+    bassFreqHz: 135,
+    trebleFreqHz: 3600,
+    presenceFreqHz: 3600,
+    midBiasDb: 3.0,
+    trebleBiasDb: 1.5,
+    bassBiasDb: -2.0,
+    presenceBiasDb: 0.5,
+    useCutControl: false,
+    outputTrim: 0.9,
+  },
+  slo100: {
+    typeId: 'slo100',
+    family: 'soldano',
+    label: 'SLO-100',
+    preampSensitivity: 0.78,
+    preampDriveScale: 1.35,
+    preampAsymmetry: 0.18,
+    powerDriveScale: 0.85,
+    sag: 0.48,
+    inputHpfHz: 90,
+    brightCapHz: 0,
+    brightCapDb: 0,
+    midFreqHz: 720,
+    midQ: 0.9,
+    bassFreqHz: 125,
+    trebleFreqHz: 3400,
+    presenceFreqHz: 4000,
+    midBiasDb: 3.5,
+    trebleBiasDb: 0.5,
+    bassBiasDb: 0.5,
+    presenceBiasDb: 0.8,
+    useCutControl: false,
+    outputTrim: 0.88,
+  },
   ac30: {
     typeId: 'ac30',
     family: 'vox',
@@ -216,6 +289,12 @@ export function channelDriveBias(channel: string | number | boolean | undefined)
   }
   if (channel === 'Orange') {
     return { driveMul: 0.85, midExtraDb: 1.5 };
+  }
+  if (channel === 'Lead') {
+    return { driveMul: 1.25, midExtraDb: 1.5 };
+  }
+  if (channel === 'Crunch') {
+    return { driveMul: 0.9, midExtraDb: 0.5 };
   }
   return { driveMul: 1, midExtraDb: 0 };
 }

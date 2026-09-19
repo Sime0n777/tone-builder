@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SEED_TONES } from '../data/seedTones';
 import { createBlockParams } from '../data/blockCatalog';
+import type { NamLibraryEntry } from '../audio/namLibrary';
 import type { AppState, ChainBlock, TonePreset } from '../types/tone';
+import { categoryToZone, type RigZone } from '../types/tone';
+import { getBlockType } from '../data/blockCatalog';
 
 const STORAGE_KEY = 'tone-builder:v1';
 
@@ -135,6 +138,30 @@ export function useToneStore() {
     [updateActive],
   );
 
+  const insertByZone = (chain: ChainBlock[], block: ChainBlock): ChainBlock[] => {
+    const def = getBlockType(block.typeId);
+    const zone: RigZone = def ? categoryToZone(def.category) : 'rack';
+    const zoneRank: Record<RigZone, number> = {
+      pedalboard: 0,
+      amp: 1,
+      cab: 2,
+      rack: 3,
+    };
+    const rank = zoneRank[zone];
+    let insertAt = chain.length;
+    for (let i = 0; i < chain.length; i++) {
+      const d = getBlockType(chain[i]!.typeId);
+      const z = d ? categoryToZone(d.category) : 'rack';
+      if (zoneRank[z] > rank) {
+        insertAt = i;
+        break;
+      }
+    }
+    const next = [...chain];
+    next.splice(insertAt, 0, block);
+    return next;
+  };
+
   const addBlock = useCallback(
     (typeId: string) => {
       updateActive((p) => {
@@ -143,7 +170,43 @@ export function useToneStore() {
           typeId,
           params: createBlockParams(typeId),
         };
-        return { ...p, chain: [...p.chain, block] };
+        return { ...p, chain: insertByZone(p.chain, block) };
+      });
+    },
+    [updateActive],
+  );
+
+  const addNamBlock = useCallback(
+    (entry: NamLibraryEntry) => {
+      updateActive((p) => {
+        const existingIdx = p.chain.findIndex((b) => b.typeId === 'nam-amp');
+        const params = {
+          ...createBlockParams('nam-amp'),
+          modelId: entry.id,
+          modelName: entry.displayName,
+          architecture: entry.architecture,
+        };
+        if (existingIdx >= 0) {
+          return {
+            ...p,
+            chain: p.chain.map((b, i) =>
+              i === existingIdx ? { ...b, params: { ...b.params, ...params } } : b,
+            ),
+          };
+        }
+        // Prefer replacing a factory amp if present
+        const ampIdx = p.chain.findIndex((b) => getBlockType(b.typeId)?.category === 'amp');
+        const block: ChainBlock = {
+          id: crypto.randomUUID(),
+          typeId: 'nam-amp',
+          params,
+        };
+        if (ampIdx >= 0) {
+          const chain = [...p.chain];
+          chain[ampIdx] = block;
+          return { ...p, chain };
+        }
+        return { ...p, chain: insertByZone(p.chain, block) };
       });
     },
     [updateActive],
@@ -223,6 +286,7 @@ export function useToneStore() {
     deletePreset,
     setNotes,
     addBlock,
+    addNamBlock,
     removeBlock,
     moveBlock,
     setBlockParam,
