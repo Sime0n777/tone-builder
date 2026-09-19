@@ -73,6 +73,16 @@ export default function App() {
               compareMode={store.compareMode}
               audibleId={preview.audibleId}
               onAudibleChange={(w) => void preview.setAudible(w)}
+              sourceMode={preview.sourceMode}
+              onSourceModeChange={preview.setSourceMode}
+              devices={preview.devices}
+              selectedDeviceId={preview.selectedDeviceId}
+              onDeviceChange={preview.setDeviceId}
+              onRefreshDevices={() => void preview.refreshDevices()}
+              onStartLive={() => void preview.startLiveMonitoring()}
+              inputLevel={preview.inputLevel}
+              inputError={preview.inputError}
+              permissionGranted={preview.permissionGranted}
             />
 
             {store.compareMode && store.comparePreset ? (
@@ -117,7 +127,10 @@ export default function App() {
       )}
 
       <footer className="app-footer">
-        <span>Tone Builder v1 — local presets · approximate Web Audio preview</span>
+        <span>
+          Tone Builder — local presets · synth preview · live guitar input · approximate Web
+          Audio
+        </span>
       </footer>
     </div>
   );

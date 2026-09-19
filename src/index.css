@@ -386,6 +386,76 @@ button {
   margin: 0;
 }
 
+.source-mode {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.source-mode-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-right: 0.15rem;
+}
+
+.live-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.device-select select {
+  max-width: min(320px, 55vw);
+}
+
+.input-meter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 120px;
+}
+
+.input-meter-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+.input-meter-track {
+  flex: 1;
+  height: 8px;
+  min-width: 80px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.input-meter-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  transition: width 0.05s linear;
+}
+
+.input-meter-fill.hot {
+  background: linear-gradient(90deg, var(--warn), var(--danger));
+}
+
+.preview-error {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid rgba(232, 93, 76, 0.45);
+  background: rgba(232, 93, 76, 0.12);
+  color: #ffb4ab;
+  font-size: 0.85rem;
+}
+
 /* Chips */
 .chip {
   border: 1px solid var(--border);

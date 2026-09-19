@@ -4,6 +4,7 @@ import { makeCabImpulse, makeReverbImpulse } from './impulse';
 import { applyDriveCurve, driveAmountFromParams } from './waveshaper';
 
 export type PreviewNote = 'E2' | 'A2' | 'D3' | 'G3' | 'B3' | 'E4';
+export type SourceMode = 'synth' | 'live';
 
 const NOTE_FREQ: Record<PreviewNote, number> = {
   E2: 82.41,
@@ -30,7 +31,8 @@ interface BuiltGraph {
 
 /**
  * Approximate guitar-tone preview.
- * Source → drive/amp waveshapers → EQ → modulation/delay/reverb → cab → out.
+ * Source (synth oscillators or live MediaStream) → drive/amp → EQ →
+ * modulation/delay/reverb → cab → out.
  */
 export class ToneEngine {
   private ctx: AudioContext | null = null;
@@ -38,14 +40,27 @@ export class ToneEngine {
   private sourceGain: GainNode | null = null;
   private oscillators: OscillatorNode[] = [];
   private noiseSource: AudioBufferSourceNode | null = null;
+  private mediaStream: MediaStream | null = null;
+  private mediaSource: MediaStreamAudioSourceNode | null = null;
+  private analyser: AnalyserNode | null = null;
+  private analyserData: Uint8Array<ArrayBuffer> | null = null;
   private graph: BuiltGraph | null = null;
   private playing = false;
+  private sourceMode: SourceMode = 'synth';
   private note: PreviewNote = 'A2';
   private muted = false;
   private currentChain: ChainBlock[] = [];
 
   get isPlaying() {
     return this.playing;
+  }
+
+  get mode(): SourceMode {
+    return this.sourceMode;
+  }
+
+  get isLive() {
+    return this.sourceMode === 'live' && this.playing;
   }
 
   async ensureContext(): Promise<AudioContext> {
@@ -72,7 +87,7 @@ export class ToneEngine {
 
   setNote(note: PreviewNote) {
     this.note = note;
-    if (!this.playing || !this.ctx) return;
+    if (!this.playing || !this.ctx || this.sourceMode !== 'synth') return;
     const freq = NOTE_FREQ[note];
     const t = this.ctx.currentTime;
     this.oscillators.forEach((osc, i) => {
@@ -81,11 +96,13 @@ export class ToneEngine {
     });
   }
 
+  /** Synth / note preview (oscillator source). */
   async start(preset: TonePreset, note: PreviewNote = this.note): Promise<void> {
     const ctx = await this.ensureContext();
     this.stopSourcesOnly();
     this.teardownGraph();
 
+    this.sourceMode = 'synth';
     this.note = note;
     this.currentChain = preset.chain.map((b) => ({
       ...b,
@@ -104,6 +121,55 @@ export class ToneEngine {
     this.setMuted(this.muted);
   }
 
+  /**
+   * Live guitar / interface input via MediaStreamAudioSourceNode into the
+   * same DSP graph. Monitoring runs until stop().
+   */
+  async startLive(preset: TonePreset, stream: MediaStream): Promise<void> {
+    const ctx = await this.ensureContext();
+    this.stopSourcesOnly();
+    this.teardownGraph();
+
+    this.sourceMode = 'live';
+    this.mediaStream = stream;
+    this.currentChain = preset.chain.map((b) => ({
+      ...b,
+      params: { ...b.params },
+    }));
+
+    this.graph = this.buildGraph(ctx, preset.chain);
+    this.graph.output.connect(this.master!);
+
+    this.sourceGain = ctx.createGain();
+    // Interface levels vary; keep headroom — end-of-chain limiter catches peaks.
+    this.sourceGain.gain.value = 0.85;
+
+    this.analyser = ctx.createAnalyser();
+    this.analyser.fftSize = 1024;
+    this.analyser.smoothingTimeConstant = 0.8;
+    this.analyserData = new Uint8Array(new ArrayBuffer(this.analyser.fftSize));
+
+    this.mediaSource = ctx.createMediaStreamSource(stream);
+    this.mediaSource.connect(this.sourceGain);
+    this.sourceGain.connect(this.analyser);
+    this.analyser.connect(this.graph.input);
+
+    this.playing = true;
+    this.setMuted(this.muted);
+  }
+
+  /** Peak-ish input level 0–1 for a simple meter (live mode). */
+  getInputLevel(): number {
+    if (!this.analyser || !this.analyserData || !this.playing) return 0;
+    this.analyser.getByteTimeDomainData(this.analyserData);
+    let peak = 0;
+    for (let i = 0; i < this.analyserData.length; i++) {
+      const v = Math.abs(this.analyserData[i]! - 128) / 128;
+      if (v > peak) peak = v;
+    }
+    return Math.min(1, peak * 1.4);
+  }
+
   updatePreset(preset: TonePreset) {
     if (!this.playing || !this.ctx || !this.sourceGain || !this.master) return;
     this.currentChain = preset.chain.map((b) => ({
@@ -112,7 +178,17 @@ export class ToneEngine {
     }));
     this.teardownGraph();
     this.graph = this.buildGraph(this.ctx, preset.chain);
-    this.sourceGain.connect(this.graph.input);
+
+    if (this.sourceMode === 'live' && this.analyser) {
+      try {
+        this.analyser.disconnect();
+      } catch {
+        /* */
+      }
+      this.analyser.connect(this.graph.input);
+    } else {
+      this.sourceGain.connect(this.graph.input);
+    }
     this.graph.output.connect(this.master);
   }
 
@@ -143,6 +219,7 @@ export class ToneEngine {
     this.stopSourcesOnly();
     this.teardownGraph();
     this.playing = false;
+    this.sourceMode = 'synth';
   }
 
   dispose() {
@@ -172,6 +249,33 @@ export class ToneEngine {
         /* */
       }
       this.noiseSource = null;
+    }
+    if (this.mediaSource) {
+      try {
+        this.mediaSource.disconnect();
+      } catch {
+        /* */
+      }
+      this.mediaSource = null;
+    }
+    if (this.analyser) {
+      try {
+        this.analyser.disconnect();
+      } catch {
+        /* */
+      }
+      this.analyser = null;
+      this.analyserData = null;
+    }
+    if (this.mediaStream) {
+      for (const track of this.mediaStream.getTracks()) {
+        try {
+          track.stop();
+        } catch {
+          /* */
+        }
+      }
+      this.mediaStream = null;
     }
     if (this.sourceGain) {
       try {
@@ -294,7 +398,7 @@ export class ToneEngine {
     chainNodes.push(limiter, output);
 
     for (let i = 0; i < chainNodes.length - 1; i++) {
-      chainNodes[i].connect(chainNodes[i + 1]);
+      chainNodes[i]!.connect(chainNodes[i + 1]!);
     }
 
     return { input, output, paramBindings, disposables };
@@ -450,7 +554,7 @@ export class ToneEngine {
         wet.gain.value = mix;
         feedback.gain.value =
           typeId === 'flanger' || typeId === 'phaser'
-            ? Number(p.feedback ?? 3) / 10 * 0.55
+            ? (Number(p.feedback ?? 3) / 10) * 0.55
             : 0;
       }
       void tremConnected;
