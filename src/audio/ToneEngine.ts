@@ -1,6 +1,7 @@
 import { getBlockType } from '../data/blockCatalog';
 import type { ChainBlock, TonePreset } from '../types/tone';
-import { makeCabImpulse, makeReverbImpulse } from './impulse';
+import { channelDriveBias, getAmpVoice } from './ampModels';
+import { cabKindFromTypeId, makeCabImpulse, makeReverbImpulse } from './impulse';
 import { applyDriveCurve, driveAmountFromParams } from './waveshaper';
 
 export type PreviewNote = 'E2' | 'A2' | 'D3' | 'G3' | 'B3' | 'E4';
@@ -30,9 +31,9 @@ interface BuiltGraph {
 }
 
 /**
- * Approximate guitar-tone preview.
- * Source (synth oscillators or live MediaStream) → drive/amp → EQ →
- * modulation/delay/reverb → cab → out.
+ * Factory amp-sim engine (algorithmic models — not neural captures).
+ * Source (synth oscillators or live MediaStream) → drive → amp (preamp /
+ * tone stack / power sag) → modulation/delay/reverb → cab IR → out.
  */
 export class ToneEngine {
   private ctx: AudioContext | null = null;
@@ -429,7 +430,9 @@ export class ToneEngine {
       }
       const amt = driveAmountFromParams('drive', p);
       const boost = typeId === 'fuzz-face' ? 1.25 : typeId === 'rat' ? 1.15 : 1;
-      applyDriveCurve(shaper, Math.min(1, amt * boost));
+      const style =
+        typeId === 'fuzz-face' ? 'fuzz' : typeId === 'rat' ? 'hard' : 'tube';
+      applyDriveCurve(shaper, Math.min(1, amt * boost), style, typeId === 'fuzz-face' ? 0.35 : 0.15);
       inGain.gain.value = 0.65 + amt * 0.9;
       tone.frequency.value = 700 + Number(p.tone ?? p.filter ?? 5) * 520;
       outGain.gain.value = 0.4 + (Number(p.level ?? p.volume ?? 5) / 10) * 0.45;
@@ -443,70 +446,184 @@ export class ToneEngine {
     params: Record<string, number | string | boolean>,
     typeId: string,
   ): Stage {
-    const inGain = ctx.createGain();
-    const shaper = ctx.createWaveShaper();
-    shaper.oversample = '2x';
+    /**
+     * Multi-stage algorithmic amp:
+     *   input HPF → bright shelf → preamp gain → preamp shaper →
+     *   tone stack (bass/mid/treble) → sag compressor → power shaper →
+     *   presence/cut → master
+     * Voicing comes from ampModels.ts (factory sims, not NAM/ToneX captures).
+     */
+    const voice = getAmpVoice(typeId);
+
+    const entry = ctx.createGain();
+    const inputHp = ctx.createBiquadFilter();
+    inputHp.type = 'highpass';
+    inputHp.frequency.value = voice.inputHpfHz;
+    inputHp.Q.value = 0.7;
+
+    const bright = ctx.createBiquadFilter();
+    bright.type = 'highshelf';
+    bright.frequency.value = voice.brightCapHz || 3000;
+    bright.gain.value = 0;
+
+    const preGain = ctx.createGain();
+    const preShaper = ctx.createWaveShaper();
+    preShaper.oversample = '4x';
+
+    // Mild pre-EQ before tone stack (tightens mud on high-gain voices)
+    const preTight = ctx.createBiquadFilter();
+    preTight.type = 'lowshelf';
+    preTight.frequency.value = 180;
+    preTight.gain.value = voice.family === 'mesa' ? -2.5 : voice.family === 'marshall' ? -1.5 : 0;
+
     const bass = ctx.createBiquadFilter();
     bass.type = 'lowshelf';
-    bass.frequency.value = 120;
+    bass.frequency.value = voice.bassFreqHz;
+
     const mid = ctx.createBiquadFilter();
     mid.type = 'peaking';
-    mid.frequency.value = 750;
-    mid.Q.value = 0.9;
+    mid.frequency.value = voice.midFreqHz;
+    mid.Q.value = voice.midQ;
+
     const treble = ctx.createBiquadFilter();
     treble.type = 'highshelf';
-    treble.frequency.value = 3200;
+    treble.frequency.value = voice.trebleFreqHz;
+
+    // Power-amp sag approximation via dynamics compressor
+    const sag = ctx.createDynamicsCompressor();
+    sag.threshold.value = -24;
+    sag.knee.value = 12;
+    sag.ratio.value = 1.5;
+    sag.attack.value = 0.02;
+    sag.release.value = 0.25;
+
+    const powerGain = ctx.createGain();
+    const powerShaper = ctx.createWaveShaper();
+    powerShaper.oversample = '2x';
+
     const presence = ctx.createBiquadFilter();
-    presence.type = 'peaking';
-    presence.frequency.value = 4500;
+    presence.type = voice.useCutControl ? 'highshelf' : 'peaking';
+    presence.frequency.value = voice.presenceFreqHz;
     presence.Q.value = 0.7;
+
     const outGain = ctx.createGain();
 
-    inGain.connect(shaper);
-    shaper.connect(bass);
-    bass.connect(mid);
-    mid.connect(treble);
-    treble.connect(presence);
-    presence.connect(outGain);
+    entry
+      .connect(inputHp)
+      .connect(bright)
+      .connect(preGain)
+      .connect(preShaper)
+      .connect(preTight)
+      .connect(bass)
+      .connect(mid)
+      .connect(treble)
+      .connect(sag)
+      .connect(powerGain)
+      .connect(powerShaper)
+      .connect(presence)
+      .connect(outGain);
 
     const apply = (p: Record<string, number | string | boolean>) => {
-      const amt = driveAmountFromParams('amp', p);
-      // Twin: clean headroom; Deluxe: earlier blackface breakup; AC30: chimey grind
-      const cleanBias =
-        typeId === 'twin-reverb'
-          ? 0.22
-          : typeId === 'deluxe-reverb'
-            ? 0.45
-            : typeId === 'ac30'
-              ? 0.38
-              : 1;
-      applyDriveCurve(shaper, Math.min(1, amt * cleanBias));
-      inGain.gain.value = 0.5 + amt * (typeId === 'deluxe-reverb' ? 0.7 : 0.55);
+      const userGain =
+        Number(p.gain ?? p.volume ?? p.brilliantVol ?? 5) / 10;
+      const channel = channelDriveBias(p.channel);
+      const preAmt = Math.min(
+        1,
+        (voice.preampSensitivity * 0.35 + userGain * voice.preampDriveScale) *
+          channel.driveMul,
+      );
 
-      bass.gain.value = (Number(p.bass ?? 5) - 5) * 3;
+      applyDriveCurve(preShaper, preAmt, 'tube', voice.preampAsymmetry);
+      preGain.gain.value = 0.55 + preAmt * 1.15;
+
+      // Bright cap: Fender-style shelf when toggle on (and voice supports it)
+      if (voice.brightCapHz > 0 && p.bright === true) {
+        bright.frequency.value = voice.brightCapHz;
+        // Bright is more pronounced at lower volumes (real bright-cap behavior)
+        const brightScale = 1.15 - userGain * 0.45;
+        bright.gain.value = voice.brightCapDb * Math.max(0.35, brightScale);
+      } else {
+        bright.gain.value = 0;
+      }
+
+      bass.gain.value =
+        (Number(p.bass ?? 5) - 5) * (voice.family === 'fender' ? 3.2 : 2.8) +
+        voice.bassBiasDb;
       const midVal = Number(p.middle ?? p.mid ?? 5);
       mid.gain.value =
-        (midVal - 5) * 4 +
-        (typeId === 'rectifier' ? -3 : typeId === 'deluxe-reverb' ? 1.2 : 0);
+        (midVal - 5) * (voice.family === 'marshall' ? 4.5 : 3.6) +
+        voice.midBiasDb +
+        channel.midExtraDb;
       treble.gain.value =
-        (Number(p.treble ?? 5) - 5) * 3.5 +
-        (p.bright === true ? (typeId === 'deluxe-reverb' ? 2.2 : 3) : 0);
-      if (typeId === 'ac30') {
-        presence.gain.value = (5 - Number(p.cut ?? 3)) * 1.6;
-      } else if (typeId === 'deluxe-reverb') {
-        // Mild presence lift — open combo sparkle without twin shimmer
-        presence.gain.value = (Number(p.presence ?? 5.5) - 5) * 2 + 1;
-      } else {
-        presence.gain.value = (Number(p.presence ?? 5) - 5) * 2.5;
-      }
+        (Number(p.treble ?? 5) - 5) * 3.4 + voice.trebleBiasDb;
+
+      // Sag: more compression when preamp is pushed
+      const sagAmt = voice.sag * (0.4 + preAmt * 0.6);
+      sag.threshold.value = -12 - sagAmt * 18;
+      sag.ratio.value = 1.2 + sagAmt * 3.5;
+      sag.attack.value = 0.008 + (1 - sagAmt) * 0.025;
+      sag.release.value = 0.12 + sagAmt * 0.22;
+
       const master = Number(p.master ?? p.volume ?? p.brilliantVol ?? 5) / 10;
-      outGain.gain.value = 0.28 + master * 0.5;
+      // Power stage: more saturation when master is up (pushing the power amp)
+      const powerAmt = Math.min(
+        1,
+        master * voice.powerDriveScale * (0.5 + preAmt * 0.5),
+      );
+      applyDriveCurve(
+        powerShaper,
+        powerAmt * 0.85,
+        voice.family === 'mesa' ? 'hard' : 'tube',
+        voice.preampAsymmetry * 0.6,
+      );
+      powerGain.gain.value = 0.7 + powerAmt * 0.45;
+
+      if (voice.useCutControl) {
+        // Vox Cut: higher = less top (highshelf negative gain)
+        const cut = Number(p.cut ?? 3);
+        presence.type = 'highshelf';
+        presence.frequency.value = voice.presenceFreqHz;
+        presence.gain.value = -cut * 1.8 + voice.presenceBiasDb;
+      } else {
+        presence.type = 'peaking';
+        presence.frequency.value = voice.presenceFreqHz;
+        // Deluxe/Twin have no presence knob — mild fixed sparkle via bias
+        const presKnob = Number(
+          p.presence ?? (voice.family === 'fender' ? 5.5 : 5),
+        );
+        presence.gain.value =
+          (presKnob - 5) * 2.6 + voice.presenceBiasDb;
+      }
+
+      // Normal channel contribution on AC30 (blend into pre gain slightly)
+      if (typeId === 'ac30') {
+        const normal = Number(p.normalVol ?? 0) / 10;
+        preGain.gain.value += normal * 0.35;
+      }
+
+      outGain.gain.value = (0.26 + master * 0.48) * voice.outputTrim;
     };
     apply(params);
+
     return {
-      entry: inGain,
+      entry,
       exit: outGain,
-      nodes: [inGain, shaper, bass, mid, treble, presence, outGain],
+      nodes: [
+        entry,
+        inputHp,
+        bright,
+        preGain,
+        preShaper,
+        preTight,
+        bass,
+        mid,
+        treble,
+        sag,
+        powerGain,
+        powerShaper,
+        presence,
+        outGain,
+      ],
       apply,
     };
   }
@@ -722,62 +839,150 @@ export class ToneEngine {
     params: Record<string, number | string | boolean>,
     typeId: string,
   ): Stage {
+    const kind = cabKindFromTypeId(typeId);
     const entry = ctx.createGain();
     const low = ctx.createBiquadFilter();
     low.type = 'highpass';
     const high = ctx.createBiquadFilter();
     high.type = 'lowpass';
+    // On-axis / off-axis mid bump
     const bump = ctx.createBiquadFilter();
     bump.type = 'peaking';
     bump.frequency.value = 400;
     bump.Q.value = 0.8;
+    // Mic presence / air EQ layered on top of IR
+    const micEq = ctx.createBiquadFilter();
+    micEq.type = 'peaking';
+    micEq.frequency.value = 4500;
+    micEq.Q.value = 0.9;
+    const air = ctx.createBiquadFilter();
+    air.type = 'highshelf';
+    air.frequency.value = 7000;
+
     const conv = ctx.createConvolver();
-    const kind = typeId.includes('v30')
-      ? 'v30'
-      : typeId.includes('green')
-        ? 'greenback'
-        : typeId.includes('blue')
-          ? 'blue'
-          : typeId.includes('deluxe')
-            ? 'deluxe'
-            : 'generic';
-    conv.buffer = makeCabImpulse(ctx, kind);
     const wet = ctx.createGain();
-    wet.gain.value = 0.5;
+    wet.gain.value = 0.72;
     const dry = ctx.createGain();
-    dry.gain.value = 0.5;
+    dry.gain.value = 0.28;
     const exit = ctx.createGain();
+
+    // Open-back room wash (short delayed bleed)
+    const roomDelay = ctx.createDelay(0.08);
+    roomDelay.delayTime.value = 0.018;
+    const roomGain = ctx.createGain();
+    roomGain.gain.value = 0;
+    const roomLp = ctx.createBiquadFilter();
+    roomLp.type = 'lowpass';
+    roomLp.frequency.value = 3500;
+
+    let lastKey = '';
+
+    const rebuildIr = (p: Record<string, number | string | boolean>) => {
+      const key = [
+        String(p.mic ?? 'SM57'),
+        Number(p.position ?? 3).toFixed(1),
+        Number(p.distance ?? 2).toFixed(1),
+        Number(p.room ?? 0).toFixed(1),
+      ].join('|');
+      if (key === lastKey && conv.buffer) return;
+      lastKey = key;
+      conv.buffer = makeCabImpulse(ctx, kind, {
+        mic: String(p.mic ?? 'SM57'),
+        position: Number(p.position ?? 3),
+        distance: Number(p.distance ?? 2),
+        room: Number(p.room ?? 0),
+      });
+    };
 
     entry.connect(low);
     low.connect(high);
     high.connect(bump);
-    bump.connect(dry);
-    bump.connect(conv);
+    bump.connect(micEq);
+    micEq.connect(air);
+    air.connect(dry);
+    air.connect(conv);
     conv.connect(wet);
     dry.connect(exit);
     wet.connect(exit);
+    // Room path for open-back cabs
+    air.connect(roomDelay);
+    roomDelay.connect(roomLp);
+    roomLp.connect(roomGain);
+    roomGain.connect(exit);
 
     const apply = (p: Record<string, number | string | boolean>) => {
+      rebuildIr(p);
+
       const dist = Number(p.distance ?? 2) / 10;
-      const defaultLow = typeId.includes('deluxe') ? 70 : 80;
-      const defaultHi = typeId.includes('deluxe') ? 12000 : 10000;
+      const pos = Number(p.position ?? 3) / 10;
+      const isOpen = kind === 'deluxe' || kind === 'blue';
+      const defaultLow = kind === 'deluxe' ? 70 : kind === 'v30' ? 90 : 80;
+      const defaultHi =
+        kind === 'deluxe' ? 13000 : kind === 'blue' ? 11000 : kind === 'v30' ? 9500 : 10500;
+
       low.frequency.value = Number(p.lowCut ?? defaultLow);
-      // Open-back deluxe keeps more air; closed cabs darken with distance faster
-      const distFactor = typeId.includes('deluxe') || typeId.includes('blue') ? 0.22 : 0.35;
+      const distFactor = isOpen ? 0.28 : 0.4;
       const hi = Number(p.highCut ?? defaultHi) * (1 - dist * distFactor);
-      high.frequency.value = Math.max(2500, hi);
-      bump.gain.value = (0.5 - Number(p.position ?? 3) / 10) * 4;
-      // Room knob (open-back cabs): slight wet tilt via bump Q / entry
-      if (p.room !== undefined) {
-        bump.Q.value = 0.6 + Number(p.room) * 0.05;
+      high.frequency.value = Math.max(2200, hi);
+
+      // Position: on-axis (low) = brighter mid bump; off-axis = darker scoop
+      bump.frequency.value = 350 + pos * 250;
+      bump.gain.value = (0.55 - pos) * 5.5;
+      bump.Q.value = 0.65 + pos * 0.35;
+
+      // Mic EQ extras (IR already colored; this makes knob changes immediate)
+      const mic = String(p.mic ?? 'SM57');
+      if (mic === 'SM57') {
+        micEq.frequency.value = 5000;
+        micEq.gain.value = 2.2;
+        air.gain.value = -1.5 + (1 - pos) * 1.5;
+      } else if (mic === 'MD421') {
+        micEq.frequency.value = 3200;
+        micEq.gain.value = 1.2;
+        air.gain.value = 0.5;
+      } else if (mic === 'R121') {
+        micEq.frequency.value = 2800;
+        micEq.gain.value = -1.5;
+        air.gain.value = -4.5 - dist * 2;
+      } else {
+        // U87
+        micEq.frequency.value = 8000;
+        micEq.gain.value = 1.5;
+        air.gain.value = 3.5 - dist * 2;
       }
+
+      // Room wash (open-back)
+      const room = Number(p.room ?? 0) / 10;
+      roomGain.gain.value = isOpen ? room * 0.28 : room * 0.08;
+      roomDelay.delayTime.value = 0.012 + dist * 0.035 + room * 0.015;
+      roomLp.frequency.value = 4200 - dist * 1500;
+
+      // More wet IR at closer mics; a touch of dry for clarity
+      wet.gain.value = 0.62 + (1 - dist) * 0.2;
+      dry.gain.value = 0.38 - (1 - dist) * 0.15;
     };
     apply(params);
+
     return {
       entry,
       exit,
-      nodes: [entry, low, high, bump, conv, wet, dry, exit],
+      nodes: [
+        entry,
+        low,
+        high,
+        bump,
+        micEq,
+        air,
+        conv,
+        wet,
+        dry,
+        roomDelay,
+        roomLp,
+        roomGain,
+        exit,
+      ],
       apply,
     };
   }
+
 }

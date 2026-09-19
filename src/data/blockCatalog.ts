@@ -190,7 +190,7 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
     name: 'Twin Reverb',
     category: 'amp',
     shortLabel: 'TWIN',
-    description: 'Clean American twin',
+    description: 'Factory sim — clean American twin with bright-cap headroom',
     params: [
       { id: 'volume', label: 'Volume', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
       { id: 'treble', label: 'Treble', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
@@ -205,7 +205,7 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
     name: 'Deluxe Reverb',
     category: 'amp',
     shortLabel: 'DLX',
-    description: 'Fender blackface deluxe — edge-of-breakup American combo',
+    description: 'Factory sim — blackface Deluxe, edge-of-breakup American combo',
     params: [
       { id: 'volume', label: 'Volume', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
       { id: 'treble', label: 'Treble', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5.5 },
@@ -220,7 +220,7 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
     name: 'Plexi 100W',
     category: 'amp',
     shortLabel: 'PLX',
-    description: 'Classic British stack',
+    description: 'Factory sim — classic British Plexi stack crunch',
     params: [
       { id: 'presence', label: 'Presence', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
       { id: 'bass', label: 'Bass', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
@@ -234,7 +234,7 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
     name: 'Dual Rectifier',
     category: 'amp',
     shortLabel: 'RECT',
-    description: 'Modern high-gain beast',
+    description: 'Factory sim — modern high-gain rectifier with channel modes',
     params: [
       { id: 'gain', label: 'Gain', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 7 },
       { id: 'treble', label: 'Treble', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 6 },
@@ -250,7 +250,7 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
     name: 'AC30 Top Boost',
     category: 'amp',
     shortLabel: 'AC30',
-    description: 'Chimey British combo',
+    description: 'Factory sim — chimey British top-boost combo (Cut control)',
     params: [
       { id: 'normalVol', label: 'Normal Vol', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 0 },
       { id: 'brilliantVol', label: 'Brilliant Vol', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 5 },
@@ -264,7 +264,7 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
     name: '4×12 Greenbacks',
     category: 'cab',
     shortLabel: 'GB',
-    description: 'Classic Celestion Greenback IR',
+    description: 'Factory cab — 4×12 Greenback-voiced closed back',
     params: [
       { id: 'mic', label: 'Mic', type: 'select', options: ['SM57', 'MD421', 'R121', 'U87'], defaultValue: 'SM57' },
       { id: 'position', label: 'Position', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 3 },
@@ -278,7 +278,7 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
     name: '2×12 Blue Alnico',
     category: 'cab',
     shortLabel: 'BLU',
-    description: 'Open-back alnico blues',
+    description: 'Factory cab — 2×12 open-back Blue Alnico',
     params: [
       { id: 'mic', label: 'Mic', type: 'select', options: ['SM57', 'MD421', 'R121', 'U87'], defaultValue: 'R121' },
       { id: 'position', label: 'Position', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
@@ -291,7 +291,7 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
     name: '1×12 Deluxe',
     category: 'cab',
     shortLabel: 'DLX',
-    description: 'Oxford/Jensen-voiced open-back combo cab',
+    description: 'Factory cab — 1×12 open-back Deluxe (Oxford/Jensen voice)',
     params: [
       { id: 'mic', label: 'Mic', type: 'select', options: ['SM57', 'MD421', 'R121', 'U87'], defaultValue: 'SM57' },
       { id: 'position', label: 'Position', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 4 },
@@ -306,7 +306,7 @@ export const BLOCK_CATALOG: BlockTypeDef[] = [
     name: '4×12 V30',
     category: 'cab',
     shortLabel: 'V30',
-    description: 'Modern V30 closed-back',
+    description: 'Factory cab — 4×12 V30 closed-back modern',
     params: [
       { id: 'mic', label: 'Mic', type: 'select', options: ['SM57', 'MD421', 'R121', 'U87'], defaultValue: 'SM57' },
       { id: 'position', label: 'Position', type: 'knob', min: 0, max: 10, step: 0.1, defaultValue: 2 },

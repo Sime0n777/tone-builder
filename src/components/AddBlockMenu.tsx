@@ -50,6 +50,12 @@ export function AddBlockMenu({ onAdd }: AddBlockMenuProps) {
               </button>
             ))}
           </div>
+          {(filter === 'amp' || filter === 'cab' || filter === 'all') && (
+            <p className="catalog-hint">
+              Factory amp &amp; cab library — algorithmic sims you select and play (not ToneX-style
+              captures).
+            </p>
+          )}
           <div className="catalog-grid">
             {grouped.map(({ category, blocks }) =>
               blocks.map((b) => (

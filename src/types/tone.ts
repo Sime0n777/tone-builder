@@ -65,8 +65,8 @@ export const CATEGORY_LABELS: Record<BlockCategory, string> = {
   modulation: 'Modulation',
   delay: 'Delay',
   reverb: 'Reverb',
-  amp: 'Amp Head',
-  cab: 'Cab / IR',
+  amp: 'Factory Amp',
+  cab: 'Factory Cab',
 };
 
 export const CATEGORY_COLORS: Record<BlockCategory, string> = {

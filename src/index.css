@@ -999,3 +999,10 @@ button {
     flex-basis: 100%;
   }
 }
+
+.catalog-hint {
+  margin: 0.5rem 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--muted, #8b949e);
+  line-height: 1.4;
+}

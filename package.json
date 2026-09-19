@@ -22,5 +22,5 @@
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
   },
-  "description": "Guitar tone design workspace with Web Audio preview"
+  "description": "Factory amp-sim web app: algorithmic amps/cabs, live input, tone design"
 }

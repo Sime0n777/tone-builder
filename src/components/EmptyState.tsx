@@ -6,24 +6,27 @@ export function EmptyState({ onCreate }: EmptyStateProps) {
   return (
     <div className="empty-state">
       <div className="empty-card">
-        <h2>Design &amp; hear your guitar tone</h2>
+        <h2>Design &amp; play factory amp tones</h2>
         <p>
-          Tone Builder is a practical workspace for planning signal chains — pedals, amp, and cab —
-          with knobs, notes, A/B compare, export, and an approximate Web Audio preview so you can
-          hear clean vs crunch vs high-gain differences.
+          Tone Builder is a web amp-sim workspace: pick a <strong>factory amp</strong> and{' '}
+          <strong>cab</strong> from the library, build a pedal chain, and play through live
+          interface input or synth preview. Algorithmic amp models (not neural captures) —
+          no “capture your amp first” step.
         </p>
         <ol className="workflow">
           <li>
-            <strong>Build a chain</strong> — drive → modulation → delay/reverb → amp → cab/IR
+            <strong>Pick amp + cab</strong> — Deluxe Reverb, Twin, Plexi, Rectifier, AC30 +
+            matching factory cabs
           </li>
           <li>
-            <strong>Dial parameters</strong> — gain, EQ, presence, mix, time, feedback
+            <strong>Add pedals</strong> — drive → modulation → delay/reverb around the amp
           </li>
           <li>
-            <strong>Press Play</strong> — live preview updates as you turn knobs (user gesture required)
+            <strong>Play</strong> — live guitar via audio interface, or synth preview (updates
+            as you turn knobs)
           </li>
           <li>
-            <strong>Compare &amp; export</strong> — A/B two tones (switch which you hear), copy recipe or JSON
+            <strong>Compare &amp; export</strong> — A/B two tones, copy recipe or JSON
           </li>
         </ol>
         <button type="button" className="btn primary large" onClick={onCreate}>
