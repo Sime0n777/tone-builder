@@ -1,0 +1,10 @@
+/target/
+**/*.rs.bk
+# Steinberg ASIO SDK is proprietary — never commit it
+asio_sdk/ASIOSDK*/
+asio_sdk/asiosdk*/
+asio_sdk/*.zip
+asio_sdk/common/
+asio_sdk/host/
+asio_sdk/driver/
+!asio_sdk/README.md

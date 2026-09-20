@@ -28,6 +28,12 @@ A web **gear-suite amp-sim** and tone-design workspace with an AmpliTube-style r
 
 Engine assets live in `public/engine/` (`nam-worklet.js`, `nam-engine.wasm`) from the `neural-amp-modeler-wasm` package.
 
+## Desktop (Windows / ASIO)
+
+Native standalone scaffold (Rust + cpal + egui) with a real audio callback — **not** Electron/Web Audio:
+
+→ **[desktop/README.md](desktop/README.md)** — WASAPI by default; ASIO behind `--features asio` + Steinberg SDK drop-in.
+
 ## Stack
 
 - TypeScript + Vite + React

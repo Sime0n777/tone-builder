@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Desktop (Rust)
+desktop/target/
+desktop/asio_sdk/ASIOSDK*/
+desktop/asio_sdk/asiosdk*/
